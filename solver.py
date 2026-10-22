@@ -39,10 +39,15 @@ def encode(words):
     words = np.asarray(words, dtype=str)
     if words.ndim == 0:
         words = words.reshape(1)
+    if len(words) and (np.char.str_len(words) != 5).any():
+        raise ValueError("Every word must be 5 lowercase letters a-z.")
     joined = "".join(words.tolist())
-    if len(joined) != 5 * len(words) or not joined.isascii():
-        raise ValueError("Every word must be 5 ASCII letters.")
-    return np.frombuffer(joined.encode("ascii"), dtype=np.uint8).reshape(-1, 5)
+    if not joined.isascii():
+        raise ValueError("Every word must be 5 lowercase letters a-z.")
+    codes = np.frombuffer(joined.encode("ascii"), dtype=np.uint8).reshape(-1, 5)
+    if ((codes < 97) | (codes > 122)).any():
+        raise ValueError("Every word must be 5 lowercase letters a-z.")
+    return codes
 
 
 #pattern codes for every (guess, solution) pair, from letter codes
@@ -129,12 +134,14 @@ def _mean_bins(guesses, candidates, weight_sets, chunk):
     g = encode(guesses)
     cand = encode(candidates)
     outs = [np.empty(len(g), dtype=float) for _ in weight_sets]
+    #weights repeated once per guess row of a chunk; the last chunk uses a prefix
+    tiled = [np.tile(w, min(chunk, len(g))) for w in weight_sets]
     for start in range(0, len(g), chunk):
         codes = _pattern_codes(g[start:start + chunk], cand)  #(c, S)
         c = codes.shape[0]
         flat = (codes.astype(np.intp) + (N_PATTERNS * np.arange(c))[:, None]).ravel()
-        for out, weights in zip(outs, weight_sets):
-            bins = np.bincount(flat, weights=np.tile(weights, c), minlength=N_PATTERNS * c)
+        for out, weights in zip(outs, tiled):
+            bins = np.bincount(flat, weights=weights[:flat.size], minlength=N_PATTERNS * c)
             bins = bins.reshape(c, N_PATTERNS)
             with np.errstate(invalid="ignore", divide="ignore"):
                 out[start:start + c] = bins.sum(axis=1) / (bins > 0).sum(axis=1)

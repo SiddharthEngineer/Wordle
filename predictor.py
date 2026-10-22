@@ -122,7 +122,7 @@ class Predictor(object):
         if valid:
             guesses = self.valid
         else:
-            guesses = [i for i in self.available if i not in self.valid]
+            guesses = np.setdiff1d(self.available, self.valid)
 
         means = solver.expected_sizes(guesses, self.valid, weighted = word_freq) if len(guesses) else []
 

@@ -108,3 +108,9 @@ def test_parse_pattern_rejects(raw):
 def test_parse_pattern_round_trip():
     for code in range(243):
         assert solver.parse_pattern(solver.pattern_string(code)) == code
+
+
+@pytest.mark.parametrize("words", [["cr4ne"], ["abcd", "efghij"], ["Crane"], ["cr`ne"]])
+def test_encode_rejects(words):
+    with pytest.raises(ValueError):
+        solver.pattern_matrix(words, ["crane"])
