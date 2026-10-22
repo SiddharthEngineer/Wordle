@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -47,6 +48,8 @@ class SolveRequest(BaseModel):
 
 
 app = FastAPI(title="Wordle solver", docs_url=None, redoc_url=None, openapi_url=None)
+#the opening table is ~900 KB of JSON
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.get(BASE, include_in_schema=False)
