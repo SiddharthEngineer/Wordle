@@ -22,7 +22,8 @@ def main():
         writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["word", "probability", "ev", "wev"])
         for r in rows:
-            writer.writerow([r["word"], round(r["probability"], 6), round(r["ev"], 6), round(r["wev"], 6)])
+            #probabilities to 6 significant digits: most are far below 1e-6, and 6 decimals would round them to 0
+            writer.writerow([r["word"], float(f"{r['probability']:.6g}"), round(r["ev"], 6), round(r["wev"], 6)])
     print(f"Wrote {len(rows)} rows to {OUT.relative_to(ROOT)}")
 
 

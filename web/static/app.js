@@ -227,12 +227,13 @@ function renderResults() {
     const th = el('th', { scope: 'col' });
     if (sort.key === col.key) th.setAttribute('aria-sort', sort.dir === 'asc' ? 'ascending' : 'descending');
     const btn = el('button', { type: 'button' }, col.label);
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
       sort = sort.key === col.key
         ? { key: col.key, dir: sort.dir === 'asc' ? 'desc' : 'asc' }
         : { key: col.key, dir: col.dir };
       renderResults();
-      results.querySelector('th[aria-sort] button')?.focus();
+      // keep keyboard focus on the header; after a mouse click let a physical Enter submit
+      if (e.detail === 0) results.querySelector('th[aria-sort] button')?.focus();
     });
     th.append(btn);
     head.append(th);
@@ -351,8 +352,10 @@ async function solve(justSubmitted) {
     if (res.status === 422) {
       const body = await res.json().catch(() => ({}));
       const detail = typeof body.detail === 'string' ? body.detail : 'Check your guesses.';
-      if (justSubmitted && /not in the word list/.test(detail) && state.rows.length) {
-        // the word list hadn't loaded yet: give the row back to the user
+      // the word list hadn't loaded yet and the server rejected the row just submitted: give it back,
+      // unless the rows changed while the request was in flight
+      const lastRow = `Row ${state.rows.length}: `;
+      if (justSubmitted && detail.startsWith(lastRow) && /not in the word list/.test(detail) && rowsKey() === key) {
         const last = state.rows.pop();
         state.active = { letters: last.word, colors: last.colors.slice() };
         save();

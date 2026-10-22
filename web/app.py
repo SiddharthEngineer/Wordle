@@ -3,12 +3,14 @@ Web app for the solver: the tile-grid page and a small JSON API, all under BASE 
 because nginx proxies /wordle/ here without stripping the prefix).
 """
 import csv
+import json
+import math
 import os
 from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -17,7 +19,7 @@ import solver
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"
-BASE = os.environ.get("WORDLE_BASE_PATH", "/wordle").rstrip("/")
+BASE = "/" + os.environ.get("WORDLE_BASE_PATH", "/wordle").strip("/")
 EV_CAP = int(os.environ.get("WORDLE_EV_CAP", "3000"))
 
 
@@ -38,13 +40,20 @@ solver.probabilities(solver.WORDS)
 solver.expected_sizes(solver.WORDS[:1], solver.WORDS, weighted=True)
 
 
+#the no-rows response never changes, so encode it once
+OPENING_JSON = json.dumps(
+    {"remaining": len(OPENING), "capped": False, "cap": EV_CAP, "words": OPENING}, separators=(",", ":")
+).encode()
+
+
 class Row(BaseModel):
-    guess: str
-    pattern: str
+    guess: str = Field(max_length=32)
+    pattern: str = Field(max_length=32)
 
 
 class SolveRequest(BaseModel):
-    rows: list[Row] = Field(default_factory=list)
+    #the 6-row limit is checked in solve() for a readable message; this only bounds the parsing work
+    rows: list[Row] = Field(default_factory=list, max_length=64)
 
 
 app = FastAPI(title="Wordle solver", docs_url=None, redoc_url=None, openapi_url=None)
@@ -81,14 +90,15 @@ def solve(req: SolveRequest):
         guess = row.guess.strip().lower()
         if guess not in WORD_SET:
             raise HTTPException(422, f"Row {i}: {row.guess!r} is not in the word list")
+        pattern = row.pattern.strip().lower()
         try:
-            solver.parse_pattern(row.pattern.strip().lower())
+            solver.parse_pattern(pattern)
         except ValueError:
             raise HTTPException(422, f"Row {i}: {row.pattern!r} is not a valid pattern (5 of b, y, g)")
-        rows.append((guess, row.pattern.strip().lower()))
+        rows.append((guess, pattern))
 
     if not rows:
-        return {"remaining": len(OPENING), "capped": False, "cap": EV_CAP, "words": OPENING}
+        return Response(OPENING_JSON, media_type="application/json")
 
     candidates = solver.filter_candidates(rows)
     if len(candidates) > EV_CAP:
@@ -99,6 +109,11 @@ def solve(req: SolveRequest):
         ]
         return {"remaining": len(out), "capped": True, "cap": EV_CAP, "words": out}
     out = solver.solve(rows) if len(candidates) else []
+    for w in out:
+        #weighted E(|v|) is 0/0 when every candidate has zipf frequency 0 (words wordfreq doesn't know)
+        for key in ("ev", "wev"):
+            if not math.isfinite(w[key]):
+                w[key] = None
     return {"remaining": len(out), "capped": False, "cap": EV_CAP, "words": out}
 
 app.mount(f"{BASE}/static", StaticFiles(directory=STATIC), name="static")

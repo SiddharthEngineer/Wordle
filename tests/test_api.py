@@ -48,6 +48,15 @@ def test_no_rows_is_the_opening_table():
     assert body["remaining"] == N_WORDS
     assert len(body["words"]) == N_WORDS
     assert body["capped"] is False
+    assert sum(w["probability"] for w in body["words"]) == pytest.approx(1, abs=1e-4)
+    assert all(w["probability"] > 0 for w in body["words"])
+
+
+def test_unknown_frequency_words_score_without_nan():
+    #wordfreq doesn't know "aahed", so its weighted E(|v|) is 0/0; the API must still answer
+    r = post([{"guess": "aahed", "pattern": "ggggg"}])
+    assert r.status_code == 200
+    assert r.json()["words"] == [{"word": "aahed", "probability": 1.0, "ev": 1.0, "wev": None}]
 
 
 def test_one_row_keeps_the_solution():
