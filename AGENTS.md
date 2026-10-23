@@ -8,13 +8,18 @@ Wordle: a Wordle solver. Given guesses and their colors, it lists the words stil
   `pattern`, `pattern_matrix`, `filter_candidates`, `probabilities`, `expected_sizes`, `solve`.
 - `predictor.py`: the `Predictor` class the CLI uses; it delegates to `solver.py`.
 - `run.py`: interactive CLI.
+- `web/`: FastAPI app (`app.py`, routes under `/wordle`) and the page (`static/index.html`, `static/app.js`, no build step).
+- `data/opening.csv`: the no-guess table, from `scripts/precompute.py` (rerun after changing the word list or solver).
+- `Dockerfile`: the image engineerfamily deploys (`uvicorn` on port 8000).
 - `input/valid-wordle-words.txt`: the word list. `output/expected-valid-size.csv`: E(|v|) of every word against the full
   list (a regression fixture for the tests).
 - `tests/`: pytest. `test.ipynb`: experiments, kept as is.
 
 ## Run
 - CLI: `python run.py` (type `q` to quit).
-- Tests: `pip install -r requirements.txt pytest`, then `python -m pytest -q`. CI runs the same on every PR (job `test`).
+- Web: `uvicorn web.app:app`, then `http://localhost:8000/wordle/`.
+- Tests: `pip install -r requirements.txt pytest httpx`, then `python -m pytest -q`. CI runs them on every PR (job `test`)
+  and builds and health-checks the image (job `docker`).
 
 ## Rules
 - Python 3.12; `requirements.txt` holds pinned runtime dependencies only.

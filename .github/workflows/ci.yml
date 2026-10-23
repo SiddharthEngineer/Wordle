@@ -15,5 +15,21 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt pytest
+      - run: pip install -r requirements.txt pytest httpx
       - run: python -m pytest -q
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t wordle .
+      - run: docker run -d --name wordle -p 8000:8000 wordle
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if out=$(curl -sf localhost:8000/wordle/api/health); then echo "$out"; exit 0; fi
+            sleep 2
+          done
+          docker logs wordle
+          exit 1
