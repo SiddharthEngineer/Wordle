@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 from wordfreq import zipf_frequency
 from enum import Enum
+from pathlib import Path
+
+import solver
 
 """
 Class for defining type of hint.
@@ -21,7 +24,7 @@ class Predictor(object):
     def __init__(self, preload_rv = True): 
         
         #list of all 5-letter words
-        self.available = np.loadtxt("input/valid-wordle-words.txt", dtype = str) #fixed
+        self.available = np.loadtxt(Path(__file__).parent / "input/valid-wordle-words.txt", dtype = str) #fixed
         self.valid = self.available.copy() #list which gets updated
 
     #how many occurences of letter are there in a word
@@ -71,11 +74,8 @@ class Predictor(object):
     #shortens self.valid by comparing each hypothetical rule with actual rule
     #assumes that if we know the solution then we know the rule
     def update_valid(self, guess, rule):
-        valid_bool = []
-        for test_word in self.valid:
-            test_rule = self.calculate_rule(guess, test_word)
-            valid_bool.append(test_rule == rule)
-        self.valid = self.valid[valid_bool]
+        raw_rule = "".join({Hint.GREEN: "g", Hint.YELLOW: "y", Hint.BLACK: "b"}[i] for i in rule)
+        self.valid = solver.filter_candidates([(guess, raw_rule)], self.valid)
 
     #outputs frequency of all remaining valid words
     def get_frequencies(self):
@@ -118,29 +118,12 @@ class Predictor(object):
 
     #find the expected size of self.valid after making each guess
     def expected_valid_size(self, valid = True, word_freq = False):
-        means = []
-        valids = []
-
         column_name = "E[ w( |v| ) ]" if word_freq else "E( |v| )"
         if valid:
             guesses = self.valid
         else:
-            guesses = [i for i in self.available if i not in self.valid]
+            guesses = np.setdiff1d(self.available, self.valid)
 
-        for potential_guess in guesses:
+        means = solver.expected_sizes(guesses, self.valid, weighted = word_freq) if len(guesses) else []
 
-            rule_set = [0] * 243
-
-            for potential_solution in self.valid:
-                rule = self.calculate_rule(potential_guess, potential_solution)
-                index = self.index_from_rule(rule)
-
-                if word_freq:
-                    rule_set[index] += zipf_frequency(potential_solution, 'en')
-                else:
-                    rule_set[index] += 1
-
-            means.append(self.mean_size(rule_set))
-            valids.append(potential_guess in self.valid)
-        
         return pd.DataFrame({"word": guesses, column_name: means}).sort_values(column_name, ascending=True)

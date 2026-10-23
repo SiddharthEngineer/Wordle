@@ -1,5 +1,4 @@
 from predictor import Predictor
-from runtime import Runtime
 
 #collect user input based on input_type and determines if input is valid
 def collect_input(wordle, input_type):
@@ -53,11 +52,6 @@ def print_reports(wordle):
     print("\n10 highest remaining solutions by frequency:")
     print(wordle.get_frequencies().head(10))
 
-    #projected runtime
-    calc = Runtime()
-    time = calc.prediction(len(wordle.valid))
-    print("\nFinding expected valid size for each potential solution would take ~ " + time)
-    
     #expected size
     response = process_input(wordle, "ev_valid")
     if response == "y":
