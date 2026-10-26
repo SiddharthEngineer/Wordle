@@ -13,6 +13,8 @@ Wordle: a Wordle solver. Given guesses and their colors, it lists the words stil
 - `Dockerfile`: the image engineerfamily deploys (`uvicorn` on port 8000).
 - `input/valid-wordle-words.txt`: the word list. `output/expected-valid-size.csv`: E(|v|) of every word against the full
   list (a regression fixture for the tests).
+- `agents/runner.toml`: how the shared agent-runner sees this repo (validate commands, risk gate, `[release]`: every merged PR
+  gets the next `vX.Y.Z` tag, which engineerfamily's `components.toml` pins).
 - `tests/`: pytest. `test.ipynb`: experiments, kept as is.
 
 ## Run

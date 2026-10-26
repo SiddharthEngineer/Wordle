@@ -1,0 +1,28 @@
+# Wordle as a repo the shared agent-runner knows (registered as `wordle` in ~/.config/agent-runner/repos/wordle.env).
+# Read by the runner from origin/main only. Its job here today: tag every merged PR and keep a vX.Y pre-release, so
+# engineerfamily's components.toml can pin a version (engineerfamily E12/E13). Prod ships through that pin.
+[repo]
+name = "wordle"
+github = "SiddharthEngineer/Wordle"
+base = "main"
+merge = "merge"
+
+[validate]
+# CI's `test` job, without a global pip install. ~45 s.
+fast = "uv run -q --no-project --python 3.12 --with-requirements requirements.txt --with pytest --with httpx python -m pytest -q"
+full = "uv run -q --no-project --python 3.12 --with-requirements requirements.txt --with pytest --with httpx python -m pytest -q"
+
+[gate]
+high_risk = [
+    "Dockerfile",
+    ".dockerignore",
+    "requirements.txt",
+    ".github/*",
+    "agents/runner.toml",
+    "agents/settings/*",
+    ".claude/settings.json",
+]
+doc_or_test = ["*.md", "agents/*", "tests/*"]
+
+[release]
+tags = true
